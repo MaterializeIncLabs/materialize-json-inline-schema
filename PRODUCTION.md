@@ -84,13 +84,46 @@ To update the configuration without rebuilding:
 
 ### Option 2: Kubernetes Deployment
 
-Deploy as a Kubernetes Deployment for high availability:
+Deploy as a Kubernetes Deployment for high availability.
+
+**Step 1: Create Configuration File**
+
+Prepare your `application.properties`:
+
+```properties
+bootstrap.servers=kafka-service:9092
+application.id=schema-attacher-prod
+processing.guarantee=exactly_once_v2
+
+# Your topic mappings
+schema.topic.users-from-materialize={"type": "struct", "fields": [...], "name": "your.schema"}
+output.topic.users-from-materialize=users-with-schema
+```
+
+**Step 2: Create ConfigMap**
+
+Create a ConfigMap from your properties file:
+
+```bash
+kubectl create configmap schema-attacher-config \
+  --from-file=application.properties=application.properties \
+  --namespace=your-namespace
+```
+
+Verify the ConfigMap:
+
+```bash
+kubectl get configmap schema-attacher-config -o yaml
+```
+
+**Step 3: Deploy the Application**
 
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: schema-attacher
+  namespace: your-namespace
 spec:
   replicas: 1  # Note: Kafka Streams handles partitioning internally
   selector:
@@ -114,13 +147,119 @@ spec:
         volumeMounts:
         - name: config
           mountPath: /app/config
+          readOnly: true
         env:
         - name: JAVA_OPTS
           value: "-Xmx2g -Xms2g -XX:+UseG1GC"
+        livenessProbe:
+          exec:
+            command:
+            - pgrep
+            - java
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        readinessProbe:
+          exec:
+            command:
+            - pgrep
+            - java
+          initialDelaySeconds: 30
+          periodSeconds: 10
       volumes:
       - name: config
         configMap:
           name: schema-attacher-config
+          items:
+          - key: application.properties
+            path: application.properties
+```
+
+Apply the deployment:
+
+```bash
+kubectl apply -f deployment.yaml
+```
+
+**Step 4: Verify Deployment**
+
+```bash
+# Check pod status
+kubectl get pods -l app=schema-attacher
+
+# View logs
+kubectl logs -f deployment/schema-attacher
+
+# Verify RUNNING state
+kubectl logs deployment/schema-attacher | grep "State transition.*RUNNING"
+```
+
+**Updating Configuration:**
+
+To update the configuration:
+
+1. Update your local `application.properties` file
+2. Update the ConfigMap:
+   ```bash
+   kubectl create configmap schema-attacher-config \
+     --from-file=application.properties=application.properties \
+     --dry-run=client -o yaml | kubectl apply -f -
+   ```
+3. Restart the deployment to pick up changes:
+   ```bash
+   kubectl rollout restart deployment/schema-attacher
+   ```
+4. Monitor the rollout:
+   ```bash
+   kubectl rollout status deployment/schema-attacher
+   ```
+
+**For Sensitive Configuration (SASL/SSL credentials):**
+
+Use a Secret instead of ConfigMap for properties containing credentials:
+
+```bash
+# Create Secret
+kubectl create secret generic schema-attacher-config \
+  --from-file=application.properties=application.properties \
+  --namespace=your-namespace
+
+# In deployment.yaml, change volume source to:
+volumes:
+- name: config
+  secret:
+    secretName: schema-attacher-config
+    items:
+    - key: application.properties
+      path: application.properties
+```
+
+**Alternative: Split Configuration**
+
+For better security, separate non-sensitive from sensitive config:
+
+```yaml
+volumeMounts:
+- name: config
+  mountPath: /app/config/application.properties
+  subPath: application.properties
+  readOnly: true
+env:
+- name: KAFKA_BOOTSTRAP_SERVERS
+  valueFrom:
+    configMapKeyRef:
+      name: kafka-config
+      key: bootstrap.servers
+- name: KAFKA_SASL_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: kafka-credentials
+      key: sasl.password
+```
+
+Then reference these in your properties file:
+```properties
+bootstrap.servers=${env:KAFKA_BOOTSTRAP_SERVERS}
+sasl.jaas.config=... password="${env:KAFKA_SASL_PASSWORD}";
 ```
 
 ### Option 3: Standalone Java Application
