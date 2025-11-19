@@ -35,16 +35,52 @@ Use the production-ready Docker image from GitHub Container Registry:
 docker pull ghcr.io/materializeinclabs/materialize-json-inline-schema:latest
 ```
 
-Run the container:
+**Step 1: Prepare Configuration Directory**
+
+Create a configuration directory with your `application.properties`:
+
+```bash
+mkdir -p /opt/schema-attacher/config
+cat > /opt/schema-attacher/config/application.properties <<EOF
+bootstrap.servers=your-kafka-broker:9092
+application.id=schema-attacher-prod
+processing.guarantee=exactly_once_v2
+
+# Your topic mappings
+schema.topic.your-input={"type": "struct", "fields": [...], "name": "your.schema"}
+output.topic.your-input=your-output
+EOF
+```
+
+**Step 2: Run the Container**
 
 ```bash
 docker run -d \
   --name schema-attacher \
   --restart unless-stopped \
-  -v /path/to/config:/app/config \
+  --network your-kafka-network \
+  -v /opt/schema-attacher/config:/app/config \
   -e JAVA_OPTS="-Xmx2g -Xms2g" \
   ghcr.io/materializeinclabs/materialize-json-inline-schema:latest
 ```
+
+**Step 3: Verify Startup**
+
+```bash
+# Check logs
+docker logs -f schema-attacher
+
+# Verify RUNNING state
+docker logs schema-attacher | grep "State transition.*RUNNING"
+```
+
+**Updating Configuration:**
+
+To update the configuration without rebuilding:
+
+1. Edit `/opt/schema-attacher/config/application.properties`
+2. Restart the container: `docker restart schema-attacher`
+3. Monitor logs: `docker logs -f schema-attacher`
 
 ### Option 2: Kubernetes Deployment
 
@@ -159,6 +195,13 @@ Define your pipeline topics:
 schema.topic.materialize-users={"type": "struct", ...}
 output.topic.materialize-users=users-with-schema
 ```
+
+**Creating Schemas:** See [SCHEMA-GUIDE.md](SCHEMA-GUIDE.md) for comprehensive instructions on:
+- Mapping Materialize data types to Kafka Connect schemas
+- Handling timestamps and logical types
+- Type conversion behavior
+- Testing and validation
+- Common patterns and troubleshooting
 
 ## Monitoring and Observability
 

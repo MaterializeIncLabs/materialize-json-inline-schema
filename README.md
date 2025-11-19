@@ -119,6 +119,12 @@ schema.topic.my-new-topic={"type": "struct", "fields": [...], "name": "..."}
 output.topic.my-new-topic=my-new-topic-with-schema
 ```
 
+**Need help creating schemas?** See the [Schema Configuration Guide](SCHEMA-GUIDE.md) for detailed instructions on:
+- Mapping Materialize types to Kafka Connect schema types
+- Step-by-step schema creation from materialized views
+- Timestamp and logical type handling
+- Common patterns and troubleshooting
+
 Restart the schema attacher:
 
 ```bash
@@ -171,6 +177,131 @@ Supported types:
 - `bytes`
 - Nested `struct`
 - `array`
+
+## Running Standalone Container
+
+If you want to run only the schema-attacher container (not the full docker-compose stack), use the production Docker image.
+
+### 1. Prepare Your Configuration
+
+Create a custom `application.properties` file for your environment:
+
+```properties
+# Kafka/Redpanda connection settings
+bootstrap.servers=your-kafka-broker:9092
+application.id=schema-attacher
+
+# Kafka Streams configuration
+default.key.serde=org.apache.kafka.common.serialization.Serdes$StringSerde
+default.value.serde=org.apache.kafka.common.serialization.Serdes$StringSerde
+
+# Processing guarantees - exactly-once semantics
+processing.guarantee=exactly_once_v2
+
+# Topic mappings
+schema.topic.your-input-topic={"type": "struct", "fields": [...], "name": "your.schema"}
+output.topic.your-input-topic=your-output-topic
+```
+
+**Key Settings to Customize:**
+- `bootstrap.servers`: Your Kafka/Redpanda broker addresses
+- `application.id`: Unique identifier for this Kafka Streams app
+- Topic mappings: Define your input topics, schemas, and output topics
+
+### 2. Run the Container
+
+Pull the production image:
+
+```bash
+docker pull ghcr.io/materializeinclabs/materialize-json-inline-schema:latest
+```
+
+Run with your custom configuration:
+
+```bash
+docker run -d \
+  --name schema-attacher \
+  --restart unless-stopped \
+  --network your-network \
+  -v /path/to/your/application.properties:/app/config/application.properties \
+  -e JAVA_OPTS="-Xmx2g -Xms2g" \
+  ghcr.io/materializeinclabs/materialize-json-inline-schema:latest
+```
+
+**Important:**
+- Replace `/path/to/your/application.properties` with your actual config file path
+- Adjust `--network` to match your Kafka cluster's network
+- Tune `JAVA_OPTS` memory settings based on your throughput needs
+
+### 3. Update Configuration
+
+To update the configuration:
+
+1. Edit your `application.properties` file
+2. Restart the container:
+   ```bash
+   docker restart schema-attacher
+   ```
+
+The application will reload with the new configuration.
+
+### 4. Monitor the Container
+
+View logs:
+```bash
+docker logs -f schema-attacher
+```
+
+Check health:
+```bash
+docker ps --filter name=schema-attacher
+```
+
+Verify it reached RUNNING state:
+```bash
+docker logs schema-attacher | grep "State transition.*RUNNING"
+```
+
+### Example: Connecting to Confluent Cloud
+
+```properties
+bootstrap.servers=pkc-xxxxx.us-east-1.aws.confluent.cloud:9092
+application.id=schema-attacher-prod
+
+# SASL/SSL configuration for Confluent Cloud
+security.protocol=SASL_SSL
+sasl.mechanism=PLAIN
+sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required \
+  username="YOUR_API_KEY" \
+  password="YOUR_API_SECRET";
+
+# Processing guarantee
+processing.guarantee=exactly_once_v2
+
+# Your topic mappings
+schema.topic.users-from-materialize={"type": "struct", ...}
+output.topic.users-from-materialize=users-with-schema
+```
+
+### Example: Connecting to AWS MSK
+
+```properties
+bootstrap.servers=b-1.mycluster.xxxxx.kafka.us-east-1.amazonaws.com:9092,b-2.mycluster.xxxxx.kafka.us-east-1.amazonaws.com:9092
+application.id=schema-attacher-msk
+
+# IAM authentication (if using MSK IAM)
+security.protocol=SASL_SSL
+sasl.mechanism=AWS_MSK_IAM
+sasl.jaas.config=software.amazon.msk.auth.iam.IAMLoginModule required;
+sasl.client.callback.handler.class=software.amazon.msk.auth.iam.IAMClientCallbackHandler
+
+# Processing guarantee
+processing.guarantee=exactly_once_v2
+
+# Your topic mappings
+schema.topic.users-from-materialize={"type": "struct", ...}
+output.topic.users-from-materialize=users-with-schema
+```
 
 ## Project Structure
 
