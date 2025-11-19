@@ -1,7 +1,7 @@
 .PHONY: help build test clean start stop restart logs deploy-connectors generate-data verify status docker-build docker-build-prod docker-push
 
 # Docker image settings
-IMAGE_NAME ?= ghcr.io/materializeinclabs/mz-json-inline-schema
+IMAGE_NAME ?= ghcr.io/materializeinclabs/materialize-json-inline-schema
 VERSION ?= latest
 PLATFORM ?= linux/amd64,linux/arm64
 

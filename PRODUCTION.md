@@ -32,7 +32,7 @@ The Schema Attacher acts as a streaming transformation layer that:
 Use the production-ready Docker image from GitHub Container Registry:
 
 ```bash
-docker pull ghcr.io/materializeinclabs/mz-json-inline-schema:latest
+docker pull ghcr.io/materializeinclabs/materialize-json-inline-schema:latest
 ```
 
 Run the container:
@@ -43,7 +43,7 @@ docker run -d \
   --restart unless-stopped \
   -v /path/to/config:/app/config \
   -e JAVA_OPTS="-Xmx2g -Xms2g" \
-  ghcr.io/materializeinclabs/mz-json-inline-schema:latest
+  ghcr.io/materializeinclabs/materialize-json-inline-schema:latest
 ```
 
 ### Option 2: Kubernetes Deployment
@@ -67,7 +67,7 @@ spec:
     spec:
       containers:
       - name: schema-attacher
-        image: ghcr.io/materializeinclabs/mz-json-inline-schema:latest
+        image: ghcr.io/materializeinclabs/materialize-json-inline-schema:latest
         resources:
           requests:
             memory: "2Gi"
@@ -443,7 +443,7 @@ Before deploying to production:
 ## Support
 
 For issues and questions:
-- GitHub Issues: https://github.com/MaterializeIncLabs/mz-json-inline-schema/issues
+- GitHub Issues: https://github.com/MaterializeIncLabs/materialize-json-inline-schema/issues
 - Documentation: See README.md and QUICKSTART.md
 
 ## License
