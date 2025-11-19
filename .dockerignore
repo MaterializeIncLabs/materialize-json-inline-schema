@@ -1,0 +1,30 @@
+# Git
+.git/
+.gitignore
+
+# Build artifacts
+target/
+dependency-reduced-pom.xml
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Documentation
+*.md
+!README.md
+
+# Docker
+docker-compose.yml
+Dockerfile.dev
+
+# Scripts
+scripts/
+
+# Logs
+*.log
+
+# Test files
+src/test/

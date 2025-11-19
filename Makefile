@@ -1,4 +1,9 @@
-.PHONY: help build test clean start stop restart logs deploy-connectors generate-data verify status
+.PHONY: help build test clean start stop restart logs deploy-connectors generate-data verify status docker-build docker-build-prod docker-push
+
+# Docker image settings
+IMAGE_NAME ?= ghcr.io/materializeinclabs/mz-json-inline-schema
+VERSION ?= latest
+PLATFORM ?= linux/amd64,linux/arm64
 
 help:
 	@echo "Materialize JSON Schema Attacher - Makefile Commands"
@@ -7,6 +12,11 @@ help:
 	@echo "  make build              - Build the application JAR"
 	@echo "  make test               - Run unit tests"
 	@echo "  make clean              - Clean build artifacts"
+	@echo ""
+	@echo "Docker Build:"
+	@echo "  make docker-build       - Build development Docker image"
+	@echo "  make docker-build-prod  - Build production Docker image"
+	@echo "  make docker-push        - Build and push multi-arch production image"
 	@echo ""
 	@echo "Docker Operations:"
 	@echo "  make start              - Start all services"
@@ -107,3 +117,28 @@ check-connectors:
 
 check-topics:
 	@docker exec redpanda rpk topic list
+
+# Docker image builds
+docker-build:
+	@echo "Building development Docker image..."
+	docker build -f Dockerfile.dev -t $(IMAGE_NAME):dev .
+
+docker-build-prod:
+	@echo "Building production Docker image..."
+	@echo "Image: $(IMAGE_NAME):$(VERSION)"
+	docker build -t $(IMAGE_NAME):$(VERSION) .
+	@echo "✓ Production image built successfully"
+	@echo "Run: docker run -v /path/to/config:/app/config $(IMAGE_NAME):$(VERSION)"
+
+docker-push:
+	@echo "Building and pushing multi-arch production image..."
+	@echo "Image: $(IMAGE_NAME):$(VERSION)"
+	@echo "Platforms: $(PLATFORM)"
+	docker buildx build \
+		--platform $(PLATFORM) \
+		--push \
+		-t $(IMAGE_NAME):$(VERSION) \
+		-t $(IMAGE_NAME):latest \
+		.
+	@echo "✓ Multi-arch image pushed successfully"
+	@echo "Pull: docker pull $(IMAGE_NAME):$(VERSION)"

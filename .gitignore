@@ -25,3 +25,6 @@ hs_err_pid*
 
 # Docker volumes (if any)
 data/
+
+# Heap dumps
+*.hprof
