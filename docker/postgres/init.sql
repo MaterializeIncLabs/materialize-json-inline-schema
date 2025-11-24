@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS users (
     id BIGINT PRIMARY KEY,
     name TEXT NOT NULL,  -- Uppercase normalized
     email TEXT NOT NULL,  -- Filtered: only users with emails
-    created_at BIGINT NOT NULL
+    created_at BIGINT NOT NULL,
+    created_timestamp TIMESTAMP  -- Converted from milliseconds via Kafka Connect Timestamp logical type
 );
 
 -- Table 2: Orders - Processed orders with categorization

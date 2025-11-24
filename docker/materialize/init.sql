@@ -21,13 +21,15 @@ ENVELOPE UPSERT;
 -- Materialized View: Process and enrich user data
 -- - Filter out users without emails (data quality)
 -- - Normalize names to uppercase for consistency
+-- - Convert created_at to TIMESTAMP for timestamp testing
 -- Note: Removed account_age_days as mz_now() cannot be used in materialized views
 CREATE MATERIALIZED VIEW IF NOT EXISTS users_processed AS
 SELECT
     key::bigint AS id,  -- Use the Kafka key as id to preserve uniqueness
     UPPER(data->>'name') AS name,  -- Normalize names to uppercase
     data->>'email' AS email,
-    (data->>'created_at')::bigint AS created_at
+    (data->>'created_at')::bigint AS created_at,
+    to_timestamp((data->>'created_at')::bigint / 1000.0) AS created_timestamp  -- Convert milliseconds to TIMESTAMP
 FROM users_source
 WHERE data->>'email' IS NOT NULL;  -- Filter: only users with emails
 
