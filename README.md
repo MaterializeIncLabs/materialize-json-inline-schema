@@ -178,6 +178,36 @@ Supported types:
 - Nested `struct`
 - `array`
 
+### Schema Generator Tool
+
+For complex schemas or multiple sinks, use the included schema generator tool to automatically create schema configurations from your Materialize sinks:
+
+```bash
+# Install dependencies
+pip install -r tools/requirements.txt
+
+# Generate schemas for all Kafka sinks
+python3 tools/generate_schemas.py \
+  --host localhost \
+  --port 6875 \
+  --output config/generated.properties
+
+# Generate for specific sinks
+python3 tools/generate_schemas.py \
+  --host mz.example.com \
+  --sink users_json_sink \
+  --sink orders_json_sink
+```
+
+The tool:
+- Queries Materialize's catalog to discover all Kafka sinks
+- Extracts column definitions with types and nullability
+- Automatically maps Materialize types to Kafka Connect types
+- Handles temporal types with proper logical type annotations
+- Supports properties and JSON output formats
+
+See [tools/README.md](tools/README.md) for complete documentation.
+
 ## Running Standalone Container
 
 If you want to run only the schema-attacher container (not the full docker-compose stack), use the production Docker image.
