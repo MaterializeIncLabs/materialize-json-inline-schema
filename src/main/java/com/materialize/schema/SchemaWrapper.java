@@ -62,10 +62,13 @@ public class SchemaWrapper {
                                 String textValue = fieldValue.asText();
                                 long numValue;
                                 if ("org.apache.kafka.connect.data.Timestamp".equals(logicalType)) {
-                                    // Materialize's native timestamp format is microseconds since epoch
+                                    // Materialize outputs timestamps as strings with optional decimal places
+                                    // e.g., "1763506181000.000" (microseconds with fractional precision)
+                                    // Remove decimal point and everything after, then parse
+                                    String cleanedValue = textValue.contains(".") ?
+                                        textValue.substring(0, textValue.indexOf(".")) : textValue;
+                                    long microseconds = Long.parseLong(cleanedValue);
                                     // Kafka Connect Timestamp expects milliseconds since epoch
-                                    // Convert by dividing by 1000
-                                    long microseconds = Long.parseLong(textValue);
                                     numValue = microseconds / 1000;
                                     logger.debug("Converted timestamp field {} from {} microseconds to {} milliseconds",
                                                fieldName, textValue, numValue);
