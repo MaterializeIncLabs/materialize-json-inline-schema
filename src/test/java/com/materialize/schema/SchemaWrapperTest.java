@@ -138,4 +138,74 @@ class SchemaWrapperTest {
         assertTrue(payload.get("metadata").isObject());
         assertTrue(payload.get("metadata").get("tags").isArray());
     }
+
+    @Test
+    void testTimestampConversion_Microseconds() throws JsonProcessingException {
+        // Materialize's native timestamp format: microseconds since epoch
+        // 1762525914902712 microseconds = 2025-11-07 14:31:54.902712
+        String schemaJson = """
+                {
+                  "type": "struct",
+                  "fields": [
+                    {"type": "int64", "optional": false, "field": "id"},
+                    {
+                      "type": "int64",
+                      "optional": false,
+                      "field": "timestamp_date",
+                      "name": "org.apache.kafka.connect.data.Timestamp",
+                      "version": 1
+                    }
+                  ],
+                  "optional": false,
+                  "name": "test.schema"
+                }
+                """;
+        JsonNode schema = mapper.readTree(schemaJson);
+
+        String input = """
+                {"id": "1", "timestamp_date": "1762525914902712"}
+                """;
+
+        String result = wrapper.wrapWithSchema(input, schema);
+        JsonNode resultNode = mapper.readTree(result);
+        JsonNode payload = resultNode.get("payload");
+
+        // Should be converted from microseconds to milliseconds
+        assertEquals(1762525914902L, payload.get("timestamp_date").asLong());
+    }
+
+    @Test
+    void testTimestampConversion_MicrosecondsWithPrecision() throws JsonProcessingException {
+        // Test with actual microsecond precision
+        // 1699564800123456 microseconds = 2023-11-09 20:00:00.123456
+        String schemaJson = """
+                {
+                  "type": "struct",
+                  "fields": [
+                    {"type": "int64", "optional": false, "field": "id"},
+                    {
+                      "type": "int64",
+                      "optional": false,
+                      "field": "created_at",
+                      "name": "org.apache.kafka.connect.data.Timestamp",
+                      "version": 1
+                    }
+                  ],
+                  "optional": false,
+                  "name": "test.schema"
+                }
+                """;
+        JsonNode schema = mapper.readTree(schemaJson);
+
+        String input = """
+                {"id": "1", "created_at": "1699564800123456"}
+                """;
+
+        String result = wrapper.wrapWithSchema(input, schema);
+        JsonNode resultNode = mapper.readTree(result);
+        JsonNode payload = resultNode.get("payload");
+
+        // Should be converted from microseconds to milliseconds (truncating microseconds)
+        assertEquals(1699564800123L, payload.get("created_at").asLong());
+    }
 }

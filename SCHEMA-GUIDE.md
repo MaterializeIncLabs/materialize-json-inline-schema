@@ -83,9 +83,13 @@ Logical types add semantic meaning to primitive types:
 }
 ```
 
-Represents milliseconds since Unix epoch. The Schema Attacher automatically converts:
-- Materialize `to_timestamp()` output (decimal seconds) → int64 milliseconds
-- String timestamps → int64 milliseconds
+Represents milliseconds since Unix epoch.
+
+**IMPORTANT**: Materialize's native timestamp format is **microseconds** since epoch. The Schema Attacher automatically converts:
+- **Materialize microseconds** (16-17 digit numbers) → milliseconds (divides by 1000)
+- Example: `1762525914902712` microseconds → `1762525914902` milliseconds
+
+This conversion is critical for proper timestamp handling in JDBC sinks. Without it, timestamps appear as dates thousands of years in the future.
 
 #### Date
 
@@ -407,6 +411,26 @@ SELECT * FROM your_table LIMIT 5;
 - Confirm timestamp field uses logical type in schema
 - Restart Schema Attacher after schema changes
 - Clear old messages or use a new topic for testing
+
+### Issue 5: Timestamps Show Dates in Distant Future
+
+**Error:** Postgres shows timestamps like `57822-03-23 11:55:02.712` instead of `2025-11-07 14:31:54.902`
+
+**Root Cause:** Materialize sends timestamps as **microseconds** (e.g., `1762525914902712`), but JDBC connector expects **milliseconds**. The large number is interpreted as milliseconds, resulting in a date thousands of years in the future.
+
+**Solution:**
+- The Schema Attacher automatically handles this conversion
+- Use the `Timestamp` logical type in your schema:
+  ```json
+  {
+    "type": "int64",
+    "field": "timestamp_field",
+    "name": "org.apache.kafka.connect.data.Timestamp",
+    "version": 1
+  }
+  ```
+- The Schema Attacher will divide microseconds by 1000 to convert to milliseconds
+- Restart Schema Attacher if you just added the logical type
 
 ## Schema Naming Conventions
 

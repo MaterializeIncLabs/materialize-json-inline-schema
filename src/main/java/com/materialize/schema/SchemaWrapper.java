@@ -59,14 +59,16 @@ public class SchemaWrapper {
                                 double numValue = Double.parseDouble(fieldValue.asText());
                                 convertedPayload.set(fieldName, new DoubleNode(numValue));
                             } else if ("int64".equals(fieldType) || "int32".equals(fieldType)) {
-                                // For timestamps: convert decimal seconds to milliseconds (int64)
                                 String textValue = fieldValue.asText();
                                 long numValue;
                                 if ("org.apache.kafka.connect.data.Timestamp".equals(logicalType)) {
-                                    // Parse as double to handle decimal, then convert to milliseconds
-                                    double secondsValue = Double.parseDouble(textValue);
-                                    numValue = (long) (secondsValue * 1000);
-                                    logger.debug("Converted timestamp field {} from {} to {} ms", fieldName, textValue, numValue);
+                                    // Materialize's native timestamp format is microseconds since epoch
+                                    // Kafka Connect Timestamp expects milliseconds since epoch
+                                    // Convert by dividing by 1000
+                                    long microseconds = Long.parseLong(textValue);
+                                    numValue = microseconds / 1000;
+                                    logger.debug("Converted timestamp field {} from {} microseconds to {} milliseconds",
+                                               fieldName, textValue, numValue);
                                 } else {
                                     numValue = Long.parseLong(textValue);
                                 }
